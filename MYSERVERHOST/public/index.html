@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minecraft Server Hosting</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Host Minecraft Server</h1>
+  <form id="form">
+    <input type="text" placeholder="Server Name" id="name" required />
+    <input type="text" placeholder="Version (e.g. 1.20.4)" id="version" required />
+    <select id="type">
+      <option value="vanilla">Vanilla</option>
+      <option value="fabric">Fabric</option>
+    </select>
+    <label><input type="checkbox" id="crack" /> Enable Crack</label>
+    <button type="submit">Create</button>
+  </form>
+  <hr />
+  <button onclick="start()">Start Server</button>
+  <button onclick="stop()">Stop Server</button>
+  <hr />
+  <input type="file" id="plugin" />
+  <button onclick="uploadPlugin()">Upload Plugin</button>
+  <script src="script.js"></script>
+</body>
+</html>
