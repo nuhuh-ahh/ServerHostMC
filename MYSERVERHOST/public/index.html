@@ -1,29 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Minecraft Server Hosting</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MC Host Panel</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Host Minecraft Server</h1>
-  <form id="form">
-    <input type="text" placeholder="Server Name" id="name" required />
-    <input type="text" placeholder="Version (e.g. 1.20.4)" id="version" required />
-    <select id="type">
-      <option value="vanilla">Vanilla</option>
-      <option value="fabric">Fabric</option>
-    </select>
-    <label><input type="checkbox" id="crack" /> Enable Crack</label>
-    <button type="submit">Create</button>
-  </form>
-  <hr />
-  <button onclick="start()">Start Server</button>
-  <button onclick="stop()">Stop Server</button>
-  <hr />
-  <input type="file" id="plugin" />
-  <button onclick="uploadPlugin()">Upload Plugin</button>
+  <header>
+    <h1>MC Host Panel (demo)</h1>
+    <nav>
+      <button onclick="show('home')">Home</button>
+      <button onclick="show('files')">Files</button>
+      <button onclick="show('plugins')">Plugins</button>
+      <button onclick="show('console')">Console</button>
+      <button onclick="show('settings')">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="page">
+      <h2>Create / Manage</h2>
+      <form id="createForm">
+        <input id="sname" placeholder="Server name" required />
+        <input id="sversion" placeholder="Version (e.g. 1.20.4)" value="1.20.4" />
+        <select id="stype">
+          <option value="vanilla">Vanilla</option>
+          <option value="paper">Paper</option>
+        </select>
+        <button>Create server & download jar</button>
+      </form>
+      <div>
+        <label>Start memory: <input id="xmx" placeholder="1G" /></label>
+        <button id="startBtn">Start</button>
+        <button id="stopBtn">Stop</button>
+      </div>
+      <div>
+        <h3>Servers</h3>
+        <ul id="serverList"></ul>
+      </div>
+    </section>
+
+    <section id="files" class="page" style="display:none">
+      <h2>Files</h2>
+      <select id="fileServer"></select>
+      <div id="fileList"></div>
+      <hr />
+      <h3>Upload file</h3>
+      <input type="file" id="fileUpload" />
+      <button id="uploadFileBtn">Upload to server root</button>
+    </section>
+
+    <section id="plugins" class="page" style="display:none">
+      <h2>Plugins / Mods (webview)</h2>
+      <select id="pluginServer"></select>
+      <div style="display:flex;gap:10px;align-items:center">
+        <select id="pluginTarget"><option value="plugins">Plugins</option><option value="mods">Mods</option></select>
+        <input id="externalUrl" placeholder="Paste file link (direct) or plugin page" style="flex:1" />
+        <button id="fetchUrlBtn">Download into server</button>
+      </div>
+      <p>Or browse (iframe) and paste direct download link into the box above.</p>
+      <iframe id="browser" src="https://curseforge.com" style="width:100%;height:500px;border:1px solid #444"></iframe>
+    </section>
+
+    <section id="console" class="page" style="display:none">
+      <h2>Console</h2>
+      <select id="consoleServer"></select>
+      <pre id="consoleLog" style="height:400px;overflow:auto;background:#000;padding:10px;color:#0f0"></pre>
+    </section>
+
+    <section id="settings" class="page" style="display:none">
+      <h2>Settings</h2>
+      <select id="settingsServer"></select>
+      <label><input type="checkbox" id="crackMode" /> Enable crack (set online-mode=false)</label>
+      <button id="applySettings">Apply</button>
+    </section>
+  </main>
+
   <script src="script.js"></script>
 </body>
 </html>
