@@ -18,7 +18,7 @@ const BASE = __dirname;
 const FILES_DIR = path.join(BASE, 'files');
 if (!fs.existsSync(FILES_DIR)) fs.mkdirSync(FILES_DIR);
 
-// store running process info: { serverName: { pid, proc, logPath } }
+// store running process info: { serverName: { pid, logPath } }
 const running = {};
 
 const storage = multer.diskStorage({
@@ -55,7 +55,7 @@ async function downloadFile(url, destPath) {
 }
 
 // ------------------ Routes ------------------
-// simple index route (fix Cannot GET /)
+// serve index
 app.get('/', (req, res) => res.sendFile(path.join(BASE, 'public', 'index.html')));
 
 // list servers
@@ -70,43 +70,36 @@ app.get('/api/servers', (req, res) => {
   res.json(list);
 });
 
-// create server: create folders and download jar (vanilla example)
+// create server (vanilla/paper support for demo)
 app.post('/api/create', async (req, res) => {
   try {
     const { name, version, type } = req.body;
     if (!name) return res.status(400).json({ error: 'missing name' });
     const folder = ensureServer(name);
-
-    // download vanilla server jar (use Mojang's version manifest)
-    // For demo, we will download from a pre-known URL pattern is not stable.
-    // We'll implement a minimal resolver for Mojang version manifest.
-
-    // fetch version manifest
     if (type === 'vanilla') {
       const manifest = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest.json').then(r => r.json());
-      const ver = manifest.versions.find(v => v.id === version) || manifest.latest.release;
-      if (!ver) return res.status(404).json({ error: 'version not found' });
-      const verData = await fetch(ver.url).then(r => r.json());
-      const serverUrl = verData.downloads.server.url;
+      const verObj = manifest.versions.find(v => v.id === version) || manifest.versions.find(v => v.id === manifest.latest.release);
+      if (!verObj) return res.status(404).json({ error: 'version not found' });
+      const verData = await fetch(verObj.url).then(r => r.json());
+      const serverUrl = verData.downloads && verData.downloads.server && verData.downloads.server.url;
+      if (!serverUrl) return res.status(500).json({ error: 'server URL not found in manifest' });
       await downloadFile(serverUrl, path.join(folder, 'server.jar'));
       fs.writeFileSync(path.join(folder, 'eula.txt'), 'eula=true');
-
       return res.json({ ok: true, message: 'vanilla server.jar downloaded' });
-    }
-
-    // Fabric/Forge/Paper etc would require different flows (not fully implemented here)
-    if (type === 'paper') {
-      // example: fetch paper api
-      const paperMeta = await fetch(`https://api.papermc.io/v2/projects/paper/versions/${version}`).then(r => r.json());
-      // get latest build
-      const build = paperMeta.builds[paperMeta.builds.length - 1];
+    } else if (type === 'paper') {
+      const paperMeta = await fetch(`https://api.papermc.io/v2/projects/paper/versions/${version}`).then(r=> {
+        if (!r.ok) throw new Error('paper version not found');
+        return r.json();
+      });
+      const builds = paperMeta.builds;
+      const build = builds[builds.length - 1];
       const jarUrl = `https://api.papermc.io/v2/projects/paper/versions/${version}/builds/${build}/downloads/paper-${version}-${build}.jar`;
       await downloadFile(jarUrl, path.join(folder, 'server.jar'));
       fs.writeFileSync(path.join(folder, 'eula.txt'), 'eula=true');
       return res.json({ ok: true, message: 'paper server.jar downloaded' });
+    } else {
+      return res.status(400).json({ error: 'type not supported in demo' });
     }
-
-    res.status(400).json({ error: 'type not supported in demo' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -173,9 +166,7 @@ app.get('/api/log/:name', (req, res) => {
       stream.on('data', c => chunk += c.toString());
       stream.on('end', () => {
         pos = stat.size;
-        res.write(`data: ${chunk}
-
-`);
+        res.write(`data: ${chunk}\n\n`);
       });
     }
   };
@@ -185,10 +176,10 @@ app.get('/api/log/:name', (req, res) => {
 
 // upload plugin/mod via file upload (placed into plugins or mods)
 app.post('/api/upload/:name/:type', upload.single('file'), (req, res) => {
-  const { name, type } = req.params; // type: plugins or mods
+  const { name, type } = req.params; // type: plugins or mods or files
   if (!name) return res.status(400).json({ error: 'missing name' });
   const folder = ensureServer(name);
-  const targetDir = type === 'mods' ? path.join(folder, 'mods') : path.join(folder, 'plugins');
+  const targetDir = type === 'mods' ? path.join(folder, 'mods') : type === 'files' ? folder : path.join(folder, 'plugins');
   if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir);
   const tmpPath = req.file.path;
   const dest = path.join(targetDir, req.file.originalname);
@@ -221,15 +212,16 @@ app.get('/api/files/:name', (req, res) => {
   const folder = serverFolder(name);
   if (!fs.existsSync(folder)) return res.status(404).json({ error: 'not found' });
   const items = [];
-  const walk = (dir) => {
+  function walk(dir) {
     const files = fs.readdirSync(dir);
     files.forEach(f => {
       const full = path.join(dir, f);
       const rel = path.relative(folder, full);
       const stat = fs.statSync(full);
       items.push({ name: rel, isDir: stat.isDirectory(), size: stat.size });
+      if (stat.isDirectory()) walk(full);
     });
-  };
+  }
   walk(folder);
   res.json(items);
 });
@@ -257,7 +249,9 @@ app.delete('/api/file/:name/*', (req, res) => {
   res.json({ ok: true });
 });
 
-// fallback
-app.use((req, res) => res.status(404).send('Not found'));
+// fallback - serve SPA index for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(BASE, 'public', 'index.html'));
+});
 
 app.listen(PORT, () => console.log(`Server listening ${PORT}`));
